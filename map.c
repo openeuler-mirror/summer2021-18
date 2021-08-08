@@ -35,7 +35,10 @@ static map_node_t *map_newnode(const char *key, void *value, int vsize)
   int voffset = ksize + ((sizeof(void *) - ksize) % sizeof(void *));
   node = malloc(sizeof(*node) + voffset + vsize);
   if (!node)
+  {
     return NULL;
+  }
+
   memcpy(node + 1, key, ksize);
   node->hash = map_hash(key);
   node->value = ((char *)(node + 1)) + voffset;
@@ -46,7 +49,7 @@ static map_node_t *map_newnode(const char *key, void *value, int vsize)
 static int map_bucketidx(map_base_t *m, unsigned hash)
 {
   /* If the implementation is changed to allow a non-power-of-2 bucket count,
-   * the line below should be changed to use mod instead of AND */
+    * the line below should be changed to use mod instead of AND */
   return hash & (m->nbuckets - 1);
 }
 
@@ -59,7 +62,7 @@ static void map_addnode(map_base_t *m, map_node_t *node)
 
 static int map_resize(map_base_t *m, int nbuckets)
 {
-  map_node_t *nodes, *node, *next;
+  map_node_t *nodes = NULL, *node = NULL, *next = NULL;
   map_node_t **buckets;
   int i;
   /* Chain all nodes together */
@@ -156,7 +159,10 @@ int map_set_(map_base_t *m, const char *key, void *value, int vsize)
   /* Add new node */
   node = map_newnode(key, value, vsize);
   if (node == NULL)
+  {
     goto fail;
+  }
+
   if (m->nnodes >= m->nbuckets)
   {
     n = (m->nbuckets > 0) ? (m->nbuckets << 1) : 1;
