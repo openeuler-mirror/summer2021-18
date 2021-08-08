@@ -7,36 +7,36 @@
 #define ENABLE_LOCATION 0 //enable to show the pid in which line
 #define HIDE_PID1 1       //enable to show information about pid 1
 
-map_int_t m; //define the map as global
+map_int_t g_map; //define the map as global
 
 void pid_sort(char *s, int linenum, FILE *fout) //matching the pid number, do the counting
 {
 
-    char *pt;
+    char *pt = NULL;
     char pidnumber[5];
     char pid[5] = "pid ";
     char pid1[5] = "pid 1";
-    int number;
+    int number = 0;
 
     pt = strstr(s, pid);
     sscanf(pt, "%*[^0-9]%d", &number);
     sprintf(pidnumber, "%d", number);
     strcat(pid, pidnumber);
 
-    int *val = map_get(&m, pid);
+    int *val = map_get(&g_map, pid);
     if (val)
     {
         *val += 1;
-        map_set(&m, pid, *val);
+        map_set(&g_map, pid, *val);
     }
     else
     {
-        map_set(&m, pid, 1);
+        map_set(&g_map, pid, 1);
     }
 
     if (ENABLE_LOCATION) //using the flag for control the output for line
     {
-        if (strncmp(pid, pid1, sizeof(pid)) != 0 && HIDE_PID1)//addition flag to hide the pid 1 init process
+        if (strncmp(pid, pid1, sizeof(pid)) != 0 && HIDE_PID1) //addition flag to hide the pid 1 init process
         {
             fprintf(fout, "%s in line %d \n", pid, linenum);
         }
@@ -61,11 +61,12 @@ int handleline(int linenum, char *text, FILE *fout) //handling each line grab fr
 
 int readtext(const char *filename, FILE *fout) //read the file line by line
 {
-    FILE *fp;
+    FILE *fp = NULL;
 
-    int linenum;
+    int linenum = 0;
 
-    char *p, buf[1024];
+    char *p = NULL;
+    char buf[1024];
 
     fp = fopen(filename, "r");
 
@@ -114,8 +115,8 @@ void assign_comm(FILE *fout)
 {
     char path[1035];
     char copy[1035];
-    FILE *fp;
-    int checker, number;
+    FILE *fp = NULL;
+    int checker = 0, number = 0;
 
     fp = popen("/bin/ps -o pid,comm", "r");
     //fp = fopen("pid.txt", "r");
@@ -130,7 +131,7 @@ void assign_comm(FILE *fout)
 
         map_iter_t iter = map_iter(&m);
         const char *key;
-        while ((key = map_next(&m, &iter)))
+        while ((key = map_next(&g_map, &iter)))
         {
 
             sscanf(key, "%*[^0-9]%d", &checker);
@@ -139,7 +140,7 @@ void assign_comm(FILE *fout)
             {
 
                 memcpy(copy, path, strlen(path) - 1);
-                fprintf(fout, "%s -> %d\n", copy, *map_get(&m, key));
+                fprintf(fout, "%s -> %d\n", copy, *map_get(&g_map, key));
             }
         }
     }
@@ -148,8 +149,8 @@ void assign_comm(FILE *fout)
 int main(int argc, char **argv)
 {
 
-    FILE *fout;
-    map_init(&m);
+    FILE *fout = NULL;
+    map_init(&g_map);
 
     if (argc < 3)
     {
@@ -165,7 +166,7 @@ int main(int argc, char **argv)
 
     assign_comm(fout);
 
-    map_deinit(&m);
+    map_deinit(&g_map);
 
     return 0;
 }
