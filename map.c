@@ -30,7 +30,7 @@ static unsigned map_hash(const char *str)
 
 static map_node_t *map_newnode(const char *key, void *value, int vsize)
 {
-    map_node_t *node;
+    map_node_t *node = NULL;
     int ksize = strlen(key) + 1;
     int voffset = ksize + ((sizeof(void *) - ksize) % sizeof(void *));
     node = malloc(sizeof(*node) + voffset + vsize);
@@ -49,7 +49,7 @@ static map_node_t *map_newnode(const char *key, void *value, int vsize)
 static int map_bucketidx(map_base_t *m, unsigned hash)
 {
     /* If the implementation is changed to allow a non-power-of-2 bucket count,
-                                * the line below should be changed to use mod instead of AND */
+                                                                                                                                * the line below should be changed to use mod instead of AND */
     return hash & (m->nbuckets - 1);
 }
 
@@ -63,8 +63,8 @@ static void map_addnode(map_base_t *m, map_node_t *node)
 static int map_resize(map_base_t *m, int nbuckets)
 {
     map_node_t *nodes = NULL, *node = NULL, *next = NULL;
-    map_node_t **buckets;
-    int i;
+    map_node_t **buckets = NULL;
+    int i = 0;
     /* Chain all nodes together */
     nodes = NULL;
     i = m->nbuckets;
@@ -147,8 +147,8 @@ void *map_get_(map_base_t *m, const char *key)
 
 int map_set_(map_base_t *m, const char *key, void *value, int vsize)
 {
-    int n, err;
-    map_node_t **next, *node;
+    int n = 0, err = 0;
+    map_node_t **next = NULL, *node = NULL;
     /* Find & replace existing node */
     next = map_getref(m, key);
     if (next)
@@ -188,7 +188,7 @@ int map_set_(map_base_t *m, const char *key, void *value, int vsize)
 
 void map_remove_(map_base_t *m, const char *key)
 {
-    map_node_t *node;
+    map_node_t *node = NULL;
     map_node_t **next = map_getref(m, key);
     if (next)
     {
@@ -212,14 +212,21 @@ const char *map_next_(map_base_t *m, map_iter_t *iter)
     if (iter->node)
     {
         iter->node = iter->node->next;
-        if (iter->node == NULL){
-            goto nextBucket;
+        if (iter->node == NULL)
+        {
+            do
+            {
+                if (++iter->bucketidx >= m->nbuckets)
+                {
+                    return NULL;
+                }
+                iter->node = m->buckets[iter->bucketidx];
+            } while (iter->node == NULL);
         }
-            
     }
     else
     {
-    nextBucket:
+
         do
         {
             if (++iter->bucketidx >= m->nbuckets)
