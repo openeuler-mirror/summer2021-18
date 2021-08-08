@@ -49,7 +49,7 @@ static map_node_t *map_newnode(const char *key, void *value, int vsize)
 static int map_bucketidx(map_base_t *m, unsigned hash)
 {
     /* If the implementation is changed to allow a non-power-of-2 bucket count,
-                * the line below should be changed to use mod instead of AND */
+                                * the line below should be changed to use mod instead of AND */
     return hash & (m->nbuckets - 1);
 }
 
@@ -123,8 +123,8 @@ static map_node_t **map_getref(map_base_t *m, const char *key)
 
 void map_deinit_(map_base_t *m)
 {
-    map_node_t *next, *node;
-    int i;
+    map_node_t *next = NULL, *node = NULL;
+    int i = 0;
     i = m->nbuckets;
     while (i--)
     {
@@ -160,7 +160,12 @@ int map_set_(map_base_t *m, const char *key, void *value, int vsize)
     node = map_newnode(key, value, vsize);
     if (node == NULL)
     {
-        goto fail;
+        if (node)
+        {
+            free(node);
+        }
+
+        return -1;
     }
 
     if (m->nnodes >= m->nbuckets)
@@ -168,15 +173,17 @@ int map_set_(map_base_t *m, const char *key, void *value, int vsize)
         n = (m->nbuckets > 0) ? (m->nbuckets << 1) : 1;
         err = map_resize(m, n);
         if (err)
-            goto fail;
+        {
+            if (node)
+            {
+                free(node);
+            }
+            return -1;
+        }
     }
     map_addnode(m, node);
     m->nnodes++;
     return 0;
-fail:
-    if (node)
-        free(node);
-    return -1;
 }
 
 void map_remove_(map_base_t *m, const char *key)
@@ -205,8 +212,10 @@ const char *map_next_(map_base_t *m, map_iter_t *iter)
     if (iter->node)
     {
         iter->node = iter->node->next;
-        if (iter->node == NULL)
+        if (iter->node == NULL){
             goto nextBucket;
+        }
+            
     }
     else
     {
