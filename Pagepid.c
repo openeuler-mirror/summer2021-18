@@ -4,69 +4,177 @@
 #include "map.c"
 #include <ctype.h>
 
-#define ENABLE_LOCATION 0 //enable to show the pid in which line
-#define HIDE_PID1 1       //enable to show information about pid 1
+map_int_t m; //define the map as global
+char pidbuffer[40];
 
-map_int_t g_map; //define the map as global
-
-void pid_sort(char *s, int linenum, FILE *fout) //matching the pid number, do the counting
+int pid_sort(char *s, int linenum, FILE *fout) //matching the pid number, do the counting
 {
 
-    char *pt = NULL;
+    char *pt;
     char pidnumber[5];
-    char pid[5] = "pid ";
+    char pid[10] = "pid ";
     char pid1[5] = "pid 1";
-    int number = 0;
+    int number;
 
-    pt = strstr(s, pid);
-    sscanf(pt, "%*[^0-9]%d", &number);
-    sprintf(pidnumber, "%d", number);
-    strcat(pid, pidnumber);
-
-    int *val = map_get(&g_map, pid);
-    if (val)
+    if (pt = strstr(s, pid))
     {
-        *val += 1;
-        map_set(&g_map, pid, *val);
+        sscanf(pt, "%*[^0-9]%d", &number);
+        sprintf(pidnumber, "%d", number);
+        strcat(pid, pidnumber);
+        memcpy(pidbuffer, pid, sizeof(pid));
+        return 1;
     }
-    else
+    return 0;
+}
+
+int zone_sort(char *s, int linenum, FILE *fout) //matching the pid number, do the counting
+{
+
+    char *pt1;
+    char *pt2;
+    char *pt;
+    char zonenumber[12];
+    char nodenumber[12];
+    char node[7] = "node=";
+    char zone[7] = "zone=";
+    char Movable[8] = "Movable";
+    char Unmovable[10] = "Unmovable";
+    char HighAtomic[11] = "HighAtomic";
+    char Reclaimable[12] = "Reclaimable";
+    char Isolate[8] = "Isolate";
+    int type = 0;
+    char output[80];
+    char pidnumber[5];
+    int number1;
+    int number2;
+    char zonetype[1035];
+
+    if (pt = strstr(s, Movable))
     {
-        map_set(&g_map, pid, 1);
+        type = 1;
     }
 
-    if (ENABLE_LOCATION) //using the flag for control the output for line
+    if (pt = strstr(s, Unmovable))
     {
-        if (strncmp(pid, pid1, sizeof(pid)) != 0 && HIDE_PID1) //addition flag to hide the pid 1 init process
+        type = 2;
+    }
+
+    if (pt = strstr(s, HighAtomic))
+    {
+        type = 3;
+    }
+
+    if (pt = strstr(s, Reclaimable))
+    {
+        type = 4;
+    }
+
+    if (pt = strstr(s, Isolate))
+    {
+        type = 5;
+    }
+
+    if (pt1 = strstr(s, node))
+    {
+        memcpy(output, pidbuffer, sizeof(pidbuffer));
+        sscanf(pt1, "%*[^0-9]%d", &number1);
+        sprintf(nodenumber, "%d", number1);
+        strcat(node, nodenumber);
+        strcat(output, ", ");
+        strcat(output, node);
+
+        pt2 = strstr(s, zone);
+        sscanf(pt2, "%*[^0-9]%d", &number2);
+        sprintf(zonenumber, "%d", number2);
+
+        switch (number2)
         {
-            fprintf(fout, "%s in line %d \n", pid, linenum);
+        case 0:
+            memcpy(zonetype, "DMA   ", 7);
+            break;
+
+        case 1:
+            memcpy(zonetype, "DMA32 ", 7);
+            break;
+
+        default:
+            memcpy(zonetype, "Others", 7);
+            break;
+        }
+
+        //fprintf(fout, "%s, type%s in line %d \n", output, zonetype, linenum);
+
+        strcat(zone, zonenumber);
+        strcat(output, ", ");
+        strcat(output, zone);
+        strcat(output, ", type = ");
+        strcat(output, zonetype);
+
+        switch (type)
+        {
+        case 0:
+            break;
+        case 1:
+            strcat(output, ", ");
+            strcat(output, Movable);
+            break;
+        case 2:
+            strcat(output, ", ");
+            strcat(output, Unmovable);
+            break;
+        case 3:
+            strcat(output, ", ");
+            strcat(output, HighAtomic);
+            break;
+        case 4:
+            strcat(output, ", ");
+            strcat(output, Reclaimable);
+            break;
+        case 5:
+            strcat(output, ", ");
+            strcat(output, Isolate);
+            break;
+
+        default:
+            break;
+        }
+
+        int *val = map_get(&m, output);
+        if (val)
+        {
+            *val += 1;
+            map_set(&m, output, *val);
         }
         else
         {
-            fprintf(fout, "%s in line %d \n", pid, linenum);
+            map_set(&m, output, 1);
         }
+        return 1;
+    }
+    else
+    {
+        return 0;
     }
 }
 
 int handleline(int linenum, char *text, FILE *fout) //handling each line grab from the file
 {
     char buf[1024];
-    memcpy(buf, text, strlen(text));
-    if (strlen(text) > 45) //A naive way to avoid multiline output
-    {
-        pid_sort(buf, linenum, fout);
-    }
+    memcpy(buf, text, 500);
+
+    pid_sort(buf, linenum, fout);
+    zone_sort(buf, linenum, fout);
 
     return 0;
 }
 
 int readtext(const char *filename, FILE *fout) //read the file line by line
 {
-    FILE *fp = NULL;
+    FILE *fp;
 
-    int linenum = 0;
+    int linenum;
 
-    char *p = NULL;
-    char buf[1024];
+    char *p, buf[1024];
 
     fp = fopen(filename, "r");
 
@@ -113,13 +221,12 @@ int readtext(const char *filename, FILE *fout) //read the file line by line
 
 void assign_comm(FILE *fout)
 {
-    char path[1035];
-    char copy[1035];
-    FILE *fp = NULL;
-    int checker = 0, number = 0;
+    char path[1024];
+    char copy[1024];
+    FILE *fp;
+    int checker, number;
 
     fp = popen("/bin/ps -o pid,comm", "r");
-    //fp = fopen("pid.txt", "r");
     if (fp == NULL)
     {
         printf("Failed to run command\n");
@@ -131,7 +238,7 @@ void assign_comm(FILE *fout)
 
         map_iter_t iter = map_iter(&m);
         const char *key;
-        while ((key = map_next(&g_map, &iter)))
+        while ((key = map_next(&m, &iter)))
         {
 
             sscanf(key, "%*[^0-9]%d", &checker);
@@ -139,18 +246,33 @@ void assign_comm(FILE *fout)
             if (number == checker)
             {
 
-                memcpy(copy, path, strlen(path) - 1);
-                fprintf(fout, "%s -> %d\n", copy, *map_get(&g_map, key));
+                strcpy(copy, path + 6);
+                fprintf(fout, "%s -> %d ,      %s", key, *map_get(&m, key), copy);
             }
         }
+    }
+}
+
+void out_put(FILE *fout)
+{
+    map_iter_t iter = map_iter(&m);
+    const char *key;
+    int number;
+    char zonetype[1035];
+
+    while ((key = map_next(&m, &iter)))
+    {
+        printf("%s\n", key);
+
+        fprintf(fout, "%s -> %d\n", key, *map_get(&m, key));
     }
 }
 
 int main(int argc, char **argv)
 {
 
-    FILE *fout = NULL;
-    map_init(&g_map);
+    FILE *fout;
+    map_init(&m);
 
     if (argc < 3)
     {
@@ -161,12 +283,14 @@ int main(int argc, char **argv)
     fout = fopen(argv[2], "w");
     readtext(argv[1], fout);
 
-    fprintf(fout, "=========================\n");
-    fprintf(fout, "   pid  comm       number\n");
+    fprintf(fout, "===========================================================\n");
+    fprintf(fout, "   pid    node    zone      zonetype       type      number       process\n");
 
     assign_comm(fout);
 
-    map_deinit(&g_map);
+    //out_put(fout);
+
+    map_deinit(&m);
 
     return 0;
 }
