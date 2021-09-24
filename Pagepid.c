@@ -42,6 +42,7 @@ int zone_sort(char *s, int linenum, FILE *fout) //matching the pid number, do th
     char HighAtomic[11] = "HighAtomic";
     char Reclaimable[12] = "Reclaimable";
     char Isolate[8] = "Isolate";
+    char CMA[4] = "CMA";
     int type = 0;
     char output[80];
     char pidnumber[5];
@@ -72,6 +73,11 @@ int zone_sort(char *s, int linenum, FILE *fout) //matching the pid number, do th
     if (pt = strstr(s, Isolate))
     {
         type = 5;
+    }
+
+    if (pt = strstr(s, CMA))
+    {
+        type = 6;
     }
 
     if (pt1 = strstr(s, node))
@@ -133,6 +139,10 @@ int zone_sort(char *s, int linenum, FILE *fout) //matching the pid number, do th
         case 5:
             strcat(output, ", ");
             strcat(output, Isolate);
+            break;
+        case 6:
+            strcat(output, ", ");
+            strcat(output, CMA);
             break;
 
         default:
